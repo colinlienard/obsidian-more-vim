@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
+	"id": "more-vim",
+	"name": "More Vim",
+	"version": "0.0.1",
+	"minAppVersion": "0.16.0",
 	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
+	"author": "Colin Lienard",
+	"authorUrl": "https://github.com/colinlienard",
 	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": false
 }

@@ -1,80 +1,68 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { MarkdownView, Plugin } from 'obsidian';
+import { DEFAULT_SETTINGS, type Settings, SettingTab } from './settings';
+import type { Vim } from '@replit/codemirror-vim';
+import { EditorView } from '@codemirror/view';
+import { getCM } from '@replit/codemirror-vim';
+import { defineCommands } from './commands';
+import { setDefaultRegistryAsSystemClipboard } from './yank';
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class MoreVim extends Plugin {
+	settings = DEFAULT_SETTINGS;
+	#vim: Vim | undefined;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
+		this.addSettingTab(new SettingTab(this));
+
+		this.app.workspace.on('active-leaf-change', () => {
+			if (!this.initVim()) return;
+
+			defineCommands(this);
+
+			setDefaultRegistryAsSystemClipboard(this);
 		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
 	}
 
-	onunload() {
+	onunload() {}
+
+	get vim() {
+		if (!this.#vim) {
+			this.initVim();
+		}
+		return this.#vim as Vim;
+	}
+
+	initVim() {
+		const editor = this.getEditor();
+		// @ts-expect-error internal
+		const view: EditorView | undefined = editor?.cm;
+		if (!view) return false;
+		const cm = getCM(view);
+		// @ts-expect-error internal
+		this.#vim = cm?.constructor?.Vim;
+		return !!this.#vim;
+	}
+
+	getMDView() {
+		return this.app.workspace.getActiveViewOfType(MarkdownView);
+	}
+
+	getEditor() {
+		const mdView = this.getMDView();
+		return mdView?.editor;
+	}
+
+	getTokenAtCursor() {
+		const editor = this.getEditor();
+		// @ts-expect-error - internal
+		const token = editor.getClickableTokenAt(editor.getCursor());
+		return token as { type: 'internal-link' | 'external-link'; text: string } | undefined;
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		const data = (await this.loadData()) as Partial<Settings>;
+		this.settings = { ...DEFAULT_SETTINGS, ...data };
 	}
 
 	async saveSettings() {
@@ -82,18 +70,17 @@ export default class MyPlugin extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
+// Register keys
+// this.registerEditorExtension(
+// 	Prec.highest(
+// 		keymap.of([
+// 			{
+// 				key: 'Escape',
+// 				run(view) {
+// 					console.log('escape pressed');
+// 					return false;
+// 				},
+// 			},
+// 		]),
+// 	),
+// );
