@@ -14,6 +14,7 @@ export default class MoreVim extends Plugin {
 		await this.loadSettings();
 
 		this.addSettingTab(new SettingTab(this));
+		defineCommands(this);
 
 		this.app.workspace.on('active-leaf-change', () => {
 			if (!this.initVim()) return;

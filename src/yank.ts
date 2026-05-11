@@ -1,3 +1,4 @@
+import type { InsertModeChanges } from '@replit/codemirror-vim';
 import type MoreVim from './main';
 
 export function setDefaultRegistryAsSystemClipboard(plugin: MoreVim) {
@@ -19,7 +20,7 @@ export function setDefaultRegistryAsSystemClipboard(plugin: MoreVim) {
 
 class ClipboardRegister {
 	keyBuffer: string[] = [''];
-	insertModeChanges: unknown[] = [];
+	insertModeChanges: InsertModeChanges[] = [];
 	searchQueries: string[] = [];
 	linewise = false;
 	blockwise = false;
@@ -28,7 +29,7 @@ class ClipboardRegister {
 		this.keyBuffer = [text];
 		this.linewise = !!linewise;
 		this.blockwise = !!blockwise;
-		navigator.clipboard.writeText(text).catch(() => {});
+		void navigator.clipboard.writeText(text);
 	}
 
 	pushText(text: string, linewise?: boolean) {
@@ -37,13 +38,21 @@ class ClipboardRegister {
 			this.linewise = true;
 		}
 		this.keyBuffer.push(text);
-		navigator.clipboard.writeText(this.toString()).catch(() => {});
+		void navigator.clipboard.writeText(this.toString());
 	}
 
 	clear() {
 		this.keyBuffer = [];
 		this.linewise = false;
 		this.blockwise = false;
+	}
+
+	pushInsertModeChanges(changes: InsertModeChanges) {
+		this.insertModeChanges.push(changes);
+	}
+
+	pushSearchQuery(query: string) {
+		this.searchQueries.push(query);
 	}
 
 	toString() {
