@@ -4,7 +4,8 @@ import type { Vim } from '@replit/codemirror-vim';
 import { EditorView } from '@codemirror/view';
 import { getCM } from '@replit/codemirror-vim';
 import { defineCommands } from './commands';
-import { setDefaultRegistryAsSystemClipboard } from './yank';
+import { installClipboardRegister, uninstallClipboardRegister } from './yank';
+import { scrolloff } from './scrolloff';
 
 export default class MoreVim extends Plugin {
 	settings = DEFAULT_SETTINGS;
@@ -14,18 +15,17 @@ export default class MoreVim extends Plugin {
 		await this.loadSettings();
 
 		this.addSettingTab(new SettingTab(this));
+
 		defineCommands(this);
 
-		this.app.workspace.on('active-leaf-change', () => {
-			if (!this.initVim()) return;
+		installClipboardRegister(this);
 
-			defineCommands(this);
-
-			setDefaultRegistryAsSystemClipboard(this);
-		});
+		this.registerEditorExtension(scrolloff(() => this.settings.scrolloff));
 	}
 
-	onunload() {}
+	onunload() {
+		uninstallClipboardRegister(this);
+	}
 
 	get vim() {
 		if (!this.#vim) {

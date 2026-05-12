@@ -1,21 +1,67 @@
-import type { InsertModeChanges } from '@replit/codemirror-vim';
+import type { InsertModeChanges, Vim } from '@replit/codemirror-vim';
 import type MoreVim from './main';
 
-export function setDefaultRegistryAsSystemClipboard(plugin: MoreVim) {
-	const reg = new ClipboardRegister();
-	const controller = plugin.vim.getRegisterController();
-	controller.unnamedRegister = reg;
+type VimRegister = ReturnType<ReturnType<Vim['getRegisterController']>['getRegister']>;
 
-	plugin.registerDomEvent(window, 'focus', async () => {
-		try {
-			const text = await navigator.clipboard.readText();
-			reg.keyBuffer = [text];
-			reg.linewise = false;
-			reg.blockwise = false;
-		} catch {
-			//
-		}
-	});
+let originalUnnamed: VimRegister | null = null;
+let activeReg: ClipboardRegister | null = null;
+let focusHandler: (() => void) | null = null;
+
+export function installClipboardRegister(plugin: MoreVim) {
+	if (activeReg) return;
+
+	const controller = plugin.vim.getRegisterController();
+	originalUnnamed = controller.unnamedRegister;
+
+	const reg = new ClipboardRegister(() => plugin.settings.registrySystemClipboard);
+	activeReg = reg;
+	controller.unnamedRegister = reg;
+	controller.registers['"'] = reg;
+
+	focusHandler = () => {
+		if (!plugin.settings.registrySystemClipboard) return;
+		void syncFromClipboard(reg);
+	};
+	window.addEventListener('focus', focusHandler);
+
+	if (plugin.settings.registrySystemClipboard) {
+		void syncFromClipboard(reg);
+	}
+}
+
+export function uninstallClipboardRegister(plugin: MoreVim) {
+	if (!activeReg) return;
+
+	if (focusHandler) {
+		window.removeEventListener('focus', focusHandler);
+		focusHandler = null;
+	}
+
+	const controller = plugin.vim.getRegisterController();
+	if (originalUnnamed) {
+		controller.unnamedRegister = originalUnnamed;
+		controller.registers['"'] = originalUnnamed;
+	}
+	originalUnnamed = null;
+	activeReg = null;
+}
+
+export function syncRegisterWithSetting(plugin: MoreVim) {
+	if (!activeReg) return;
+	if (plugin.settings.registrySystemClipboard) {
+		void syncFromClipboard(activeReg);
+	}
+}
+
+async function syncFromClipboard(reg: ClipboardRegister) {
+	try {
+		const text = await navigator.clipboard.readText();
+		reg.keyBuffer = [text];
+		reg.linewise = false;
+		reg.blockwise = false;
+	} catch {
+		//
+	}
 }
 
 class ClipboardRegister {
@@ -25,11 +71,13 @@ class ClipboardRegister {
 	linewise = false;
 	blockwise = false;
 
+	constructor(private readonly syncEnabled: () => boolean) {}
+
 	setText(text: string, linewise?: boolean, blockwise?: boolean) {
 		this.keyBuffer = [text];
 		this.linewise = !!linewise;
 		this.blockwise = !!blockwise;
-		void navigator.clipboard.writeText(text);
+		if (this.syncEnabled()) void navigator.clipboard.writeText(text);
 	}
 
 	pushText(text: string, linewise?: boolean) {
@@ -38,7 +86,7 @@ class ClipboardRegister {
 			this.linewise = true;
 		}
 		this.keyBuffer.push(text);
-		void navigator.clipboard.writeText(this.toString());
+		if (this.syncEnabled()) void navigator.clipboard.writeText(this.toString());
 	}
 
 	clear() {
