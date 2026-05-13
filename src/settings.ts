@@ -3,13 +3,15 @@ import MoreVim from './main';
 import { syncRegisterWithSetting } from './yank';
 
 export type Settings = {
-	registrySystemClipboard: boolean;
+	registerSystemClipboard: boolean;
 	scrolloff: number;
+	modD: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-	registrySystemClipboard: true,
+	registerSystemClipboard: true,
 	scrolloff: 0,
+	modD: true,
 };
 
 export class SettingTab extends PluginSettingTab {
@@ -29,8 +31,8 @@ export class SettingTab extends PluginSettingTab {
 			.setName('Registry system clipboard')
 			.setDesc('Use the system clipboard for the default yank registry')
 			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.registrySystemClipboard).onChange(async (value) => {
-					this.plugin.settings.registrySystemClipboard = value;
+				toggle.setValue(this.plugin.settings.registerSystemClipboard).onChange(async (value) => {
+					this.plugin.settings.registerSystemClipboard = value;
 					await this.plugin.saveSettings();
 					syncRegisterWithSetting(this.plugin);
 				}),
@@ -47,6 +49,18 @@ export class SettingTab extends PluginSettingTab {
 						this.plugin.settings.scrolloff = parseInt(value);
 						await this.plugin.saveSettings();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Mod-d')
+			.setDesc(
+				'Enable mod-d to select word under cursor, and multiple press to select multiple words. ⚠️ the mod-d hotkey should be disabled first.',
+			)
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.modD).onChange(async (value) => {
+					this.plugin.settings.modD = value;
+					await this.plugin.saveSettings();
+				}),
 			);
 	}
 }

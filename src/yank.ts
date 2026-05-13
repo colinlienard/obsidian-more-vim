@@ -5,7 +5,6 @@ type VimRegister = ReturnType<ReturnType<Vim['getRegisterController']>['getRegis
 
 let originalUnnamed: VimRegister | null = null;
 let activeReg: ClipboardRegister | null = null;
-let focusHandler: (() => void) | null = null;
 
 export function installClipboardRegister(plugin: MoreVim) {
 	if (activeReg) return;
@@ -13,29 +12,23 @@ export function installClipboardRegister(plugin: MoreVim) {
 	const controller = plugin.vim.getRegisterController();
 	originalUnnamed = controller.unnamedRegister;
 
-	const reg = new ClipboardRegister(() => plugin.settings.registrySystemClipboard);
+	const reg = new ClipboardRegister(() => plugin.settings.registerSystemClipboard);
 	activeReg = reg;
 	controller.unnamedRegister = reg;
 	controller.registers['"'] = reg;
 
-	focusHandler = () => {
-		if (!plugin.settings.registrySystemClipboard) return;
-		void syncFromClipboard(reg);
-	};
-	window.addEventListener('focus', focusHandler);
-
-	if (plugin.settings.registrySystemClipboard) {
+	if (plugin.settings.registerSystemClipboard) {
 		void syncFromClipboard(reg);
 	}
+
+	plugin.registerDomEvent(window, 'focus', () => {
+		if (!plugin.settings.registerSystemClipboard) return;
+		void syncFromClipboard(reg);
+	});
 }
 
 export function uninstallClipboardRegister(plugin: MoreVim) {
 	if (!activeReg) return;
-
-	if (focusHandler) {
-		window.removeEventListener('focus', focusHandler);
-		focusHandler = null;
-	}
 
 	const controller = plugin.vim.getRegisterController();
 	if (originalUnnamed) {
@@ -48,7 +41,7 @@ export function uninstallClipboardRegister(plugin: MoreVim) {
 
 export function syncRegisterWithSetting(plugin: MoreVim) {
 	if (!activeReg) return;
-	if (plugin.settings.registrySystemClipboard) {
+	if (plugin.settings.registerSystemClipboard) {
 		void syncFromClipboard(activeReg);
 	}
 }
@@ -56,6 +49,7 @@ export function syncRegisterWithSetting(plugin: MoreVim) {
 async function syncFromClipboard(reg: ClipboardRegister) {
 	try {
 		const text = await navigator.clipboard.readText();
+		if (text === reg.toString()) return;
 		reg.keyBuffer = [text];
 		reg.linewise = false;
 		reg.blockwise = false;
@@ -84,6 +78,8 @@ class ClipboardRegister {
 		if (linewise) {
 			if (!this.linewise) this.keyBuffer.push('\n');
 			this.linewise = true;
+		} else if (this.linewise) {
+			this.keyBuffer.push('\n');
 		}
 		this.keyBuffer.push(text);
 		if (this.syncEnabled()) void navigator.clipboard.writeText(this.toString());
