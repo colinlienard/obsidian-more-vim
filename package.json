@@ -8,6 +8,7 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint .",
+		"lint:fixe": "eslint . --fix",
 		"format": "prettier .",
 		"format:fix": "prettier --write ."
 	},

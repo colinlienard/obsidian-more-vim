@@ -3,9 +3,8 @@
 	"name": "More Vim",
 	"version": "0.0.1",
 	"minAppVersion": "0.16.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
+	"description": "The missing vim features for Obsidian",
 	"author": "Colin Lienard",
 	"authorUrl": "https://github.com/colinlienard",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }

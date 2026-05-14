@@ -17,14 +17,13 @@ export function multiCursor(plugin: MoreVim) {
 function runPerCursor(key: string, plugin: MoreVim) {
 	return (view: EditorView) => {
 		const selection = view.state.selection;
-		if (selection.ranges.length <= 1) return false;
-		if (plugin.vimMode !== 'normal') return false;
+		if (selection.ranges.length <= 1 || plugin.vimMode !== 'normal' || !plugin.cm) return false;
 
 		const oldRanges = selection.ranges;
 		const newRanges: SelectionRange[] = [];
 		for (const range of oldRanges) {
 			view.dispatch({ selection: EditorSelection.single(range.head) });
-			plugin.vim.handleKey(plugin.cm, key, 'user');
+			plugin.vim?.handleKey(plugin.cm, key, 'user');
 			const main = view.state.selection.main;
 			newRanges.push(EditorSelection.range(main.anchor, main.head));
 		}

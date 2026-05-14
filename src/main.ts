@@ -11,8 +11,8 @@ import { multiCursor } from './multi-cursor';
 
 export default class MoreVim extends Plugin {
 	settings = { ...DEFAULT_SETTINGS };
-	#vim: Vim | undefined;
-	#cm: CodeMirror | undefined;
+	vim: Vim | undefined;
+	cm: CodeMirror | undefined;
 
 	async onload() {
 		await this.loadSettings();
@@ -21,7 +21,7 @@ export default class MoreVim extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => {
-				if (this.#vim) return;
+				if (this.vim) return;
 				if (!this.init()) return;
 
 				defineCommands(this);
@@ -39,48 +39,20 @@ export default class MoreVim extends Plugin {
 		uninstallClipboardRegister(this);
 	}
 
-	// TODO: remove this
-	get vim() {
-		if (!this.#vim) {
-			this.init();
-		}
-		return this.#vim as Vim;
-	}
-
 	get vimMode() {
-		return this.#cm?.state.vim?.mode as 'normal' | 'insert' | 'visual' | 'command';
-	}
-
-	// TODO: remove this
-	get cm() {
-		return this.#cm as CodeMirror;
+		return this.cm?.state.vim?.mode as 'normal' | 'insert' | 'visual' | 'command';
 	}
 
 	init() {
-		const editor = this.getEditor();
+		const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = mdView?.editor;
 		// @ts-expect-error internal
 		const view: EditorView | undefined = editor?.cm;
 		if (!view) return false;
-		this.#cm = getCM(view) || undefined;
+		this.cm = getCM(view) || undefined;
 		// @ts-expect-error internal
-		this.#vim = this.#cm?.constructor?.Vim;
-		return !!this.#vim;
-	}
-
-	getMDView() {
-		return this.app.workspace.getActiveViewOfType(MarkdownView);
-	}
-
-	getEditor() {
-		const mdView = this.getMDView();
-		return mdView?.editor;
-	}
-
-	getTokenAtCursor() {
-		const editor = this.getEditor();
-		// @ts-expect-error - internal
-		const token = editor.getClickableTokenAt(editor.getCursor());
-		return token as { type: 'internal-link' | 'external-link'; text: string } | undefined;
+		this.vim = this.cm?.constructor?.Vim;
+		return !!this.vim;
 	}
 
 	async loadSettings() {

@@ -7,7 +7,7 @@ let originalUnnamed: VimRegister | null = null;
 let activeReg: ClipboardRegister | null = null;
 
 export function installClipboardRegister(plugin: MoreVim) {
-	if (activeReg) return;
+	if (activeReg || !plugin.vim) return;
 
 	const controller = plugin.vim.getRegisterController();
 	originalUnnamed = controller.unnamedRegister;
@@ -28,7 +28,7 @@ export function installClipboardRegister(plugin: MoreVim) {
 }
 
 export function uninstallClipboardRegister(plugin: MoreVim) {
-	if (!activeReg) return;
+	if (activeReg || !plugin.vim) return;
 
 	const controller = plugin.vim.getRegisterController();
 	if (originalUnnamed) {

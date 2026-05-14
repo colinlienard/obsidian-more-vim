@@ -9,7 +9,7 @@ export function selectWord(plugin: MoreVim) {
 			{
 				key: 'Mod-d',
 				run(view: EditorView) {
-					if (!plugin.settings.modD) return false;
+					if (!plugin.settings.modD || !plugin.vim) return false;
 
 					const cm = getCM(view);
 					if (!cm) return false;
