@@ -27,7 +27,7 @@ export class SettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Registry system clipboard')
+			.setName('Register system clipboard')
 			.setDesc('Use the system clipboard for the default yank registry')
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.registerSystemClipboard).onChange(async (value) => {
@@ -51,9 +51,9 @@ export class SettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Mod-d')
+			.setName('Select word under cursor (mod-d)')
 			.setDesc(
-				'Enable mod-d to select word under cursor, and multiple press to select multiple words. ⚠️ the mod-d hotkey should be disabled first.',
+				"Enable mod-d to select word under cursor, and multiple press to select multiple words. Note: the mod-d hotkey must be disabled in Obsidian's hotkey settings first.",
 			)
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.modD).onChange(async (value) => {
