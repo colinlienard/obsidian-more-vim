@@ -221,20 +221,7 @@ function resolveRange(
 	if (Object.prototype.hasOwnProperty.call(PAIRS, target)) {
 		return findPairRange(view, target, view.state.selection.main.head, scope);
 	}
-
-	// Words/WORDs: delegate to vim's text-objects. Save & restore the cursor
-	// because the visual-then-escape dance leaves it at the selection's end.
-	const origCursor = view.state.selection.main.head;
-	plugin.vim.send(view, 'v');
-	plugin.vim.send(view, scope);
-	plugin.vim.send(view, target);
-	const sel = view.state.selection.main;
-	const from = Math.min(sel.anchor, sel.head);
-	const to = Math.max(sel.anchor, sel.head);
-	plugin.vim.send(view, '<Esc>');
-	view.dispatch({ selection: { anchor: origCursor } });
-	if (from === to) return;
-	return [from, to];
+	return plugin.vim.textObjectRange(view, scope, target);
 }
 
 const BRACKETS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '<': '>' };

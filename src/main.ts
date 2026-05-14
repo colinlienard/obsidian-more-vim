@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin } from 'obsidian';
+import { type Editor, MarkdownView, Plugin, type TFile } from 'obsidian';
 import { DEFAULT_SETTINGS, type Settings, SettingTab } from './settings';
 import type { EditorView } from '@codemirror/view';
 import { defineCommands } from './commands';
@@ -8,6 +8,12 @@ import { scrolloff } from './scrolloff';
 import { selectWord } from './select-word';
 import { multiCursor } from './multi-cursor';
 import { Vim } from './vim';
+
+export type ActiveContext = {
+	editor: Editor;
+	cmView: EditorView;
+	file: TFile | null;
+};
 
 export default class MoreVim extends Plugin {
 	settings = { ...DEFAULT_SETTINGS };
@@ -22,8 +28,8 @@ export default class MoreVim extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => {
 				if (this.vim.isReady()) return;
-				const view = activeEditorView(this);
-				if (!view || !this.vim.init(view)) return;
+				const ctx = this.activeContext();
+				if (!ctx || !this.vim.init(ctx.cmView)) return;
 
 				defineCommands(this);
 
@@ -41,6 +47,18 @@ export default class MoreVim extends Plugin {
 		this.clipboard.uninstall(this);
 	}
 
+	// The active Markdown editor and its underlying CodeMirror view. Returns
+	// undefined when no Markdown leaf is focused. Centralizes the `editor.cm`
+	// internal-API cast so feature code never reaches through `editor` itself.
+	activeContext(): ActiveContext | undefined {
+		const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const editor = mdView?.editor;
+		if (!editor) return undefined;
+		// @ts-expect-error internal — Obsidian's Editor wraps a CodeMirror EditorView
+		const cmView = editor.cm as EditorView;
+		return { editor, cmView, file: mdView?.file ?? null };
+	}
+
 	async loadSettings() {
 		const data = (await this.loadData()) as Partial<Settings>;
 		this.settings = { ...DEFAULT_SETTINGS, ...data };
@@ -49,10 +67,4 @@ export default class MoreVim extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-}
-
-function activeEditorView(plugin: MoreVim): EditorView | undefined {
-	const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-	// @ts-expect-error internal — Obsidian's Editor wraps a CodeMirror EditorView
-	return editor?.cm as EditorView | undefined;
 }

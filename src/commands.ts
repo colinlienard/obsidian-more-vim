@@ -1,5 +1,4 @@
-import type { EditorView } from '@codemirror/view';
-import { Editor, MarkdownView } from 'obsidian';
+import { Editor } from 'obsidian';
 import type MoreVim from './main';
 
 export function defineCommands(plugin: MoreVim) {
@@ -7,11 +6,11 @@ export function defineCommands(plugin: MoreVim) {
 		name: 'navigateLinkUnderCursor',
 		keys: 'gd',
 		fn() {
-			const mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-			if (!mdView?.editor) return;
-			const token = getTokenAtCursor(mdView.editor);
+			const ctx = plugin.activeContext();
+			if (!ctx) return;
+			const token = getTokenAtCursor(ctx.editor);
 			if (token?.type === 'internal-link') {
-				void plugin.app.workspace.openLinkText(token.text, mdView.file?.path ?? '');
+				void plugin.app.workspace.openLinkText(token.text, ctx.file?.path ?? '');
 			}
 		},
 	});
@@ -20,9 +19,9 @@ export function defineCommands(plugin: MoreVim) {
 		name: 'openLinkUnderCursor',
 		keys: 'gx',
 		fn() {
-			const mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-			if (!mdView?.editor) return;
-			const token = getTokenAtCursor(mdView.editor);
+			const ctx = plugin.activeContext();
+			if (!ctx) return;
+			const token = getTokenAtCursor(ctx.editor);
 			if (token?.type === 'external-link') {
 				window.open(token.text, '_blank');
 			}
@@ -33,14 +32,13 @@ export function defineCommands(plugin: MoreVim) {
 		name: 'openLineKeepList',
 		keys: 'o',
 		fn() {
-			const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-			if (!editor) return;
+			const ctx = plugin.activeContext();
+			if (!ctx) return;
+			const { editor, cmView } = ctx;
 			const { line } = editor.getCursor();
 			editor.setCursor({ line, ch: editor.getLine(line).length });
-			// @ts-expect-error internal — Obsidian's Editor wraps a CodeMirror EditorView
-			const view = editor.cm as EditorView;
-			plugin.vim.send(view, 'A'); // insert mode at end of line
-			view.contentDOM.dispatchEvent(
+			plugin.vim.send(cmView, 'A'); // insert mode at end of line
+			cmView.contentDOM.dispatchEvent(
 				new KeyboardEvent('keydown', {
 					key: 'Enter',
 					code: 'Enter',

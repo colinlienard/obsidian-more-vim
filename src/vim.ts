@@ -62,6 +62,28 @@ export class Vim {
 		return this.namespace?.getRegisterController();
 	}
 
+	// Resolve a text-object range (`iw`, `aW`, …) without leaving any trace in
+	// vim state: enters visual mode to let vim compute the selection, reads it,
+	// then escapes and restores the cursor (vim leaves it at the selection end).
+	textObjectRange(
+		view: EditorView,
+		scope: 'i' | 'a',
+		target: string,
+	): [number, number] | undefined {
+		if (!this.namespace) return undefined;
+		const origCursor = view.state.selection.main.head;
+		this.send(view, 'v');
+		this.send(view, scope);
+		this.send(view, target);
+		const sel = view.state.selection.main;
+		const from = Math.min(sel.anchor, sel.head);
+		const to = Math.max(sel.anchor, sel.head);
+		this.send(view, '<Esc>');
+		view.dispatch({ selection: { anchor: origCursor } });
+		if (from === to) return undefined;
+		return [from, to];
+	}
+
 	// Run `fn` once per selection range, collapsing the editor to that range
 	// before each call, then reassemble all resulting selections into a single
 	// multi-range selection. Synchronous — relies on vim.handleKey mutating
