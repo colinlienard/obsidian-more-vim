@@ -22,12 +22,13 @@ const PAIRS: Record<string, Pair> = {
 	'~': ['~', '~'],
 };
 
-// vim-surround aliases.
 const ALIASES: Record<string, string> = { b: '(', B: '{', r: '[' };
 const normalizePair = (k: string) => ALIASES[k] ?? k;
 const isPair = (k: string) => Object.prototype.hasOwnProperty.call(PAIRS, normalizePair(k));
 
-type State =
+const BRACKETS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '<': '>' };
+
+export type State =
 	| { kind: 'idle' }
 	| { kind: 'op'; op: 'y' | 'd' | 'c' }
 	| { kind: 'ys' }
@@ -39,82 +40,53 @@ type State =
 	| { kind: 'csOld'; old: string }
 	| { kind: 'vS' };
 
-export function installSurround(plugin: MoreVim) {
-	let state: State = { kind: 'idle' };
+export type Effect =
+	| { kind: 'wrap'; from: number; to: number; ch: string }
+	| { kind: 'deletePair'; from: number; to: number }
+	| { kind: 'changePair'; from: number; to: number; ch: string }
+	| { kind: 'replayKeys'; keys: string[] }
+	| { kind: 'escapeAndWrap'; from: number; to: number; ch: string };
 
-	plugin.registerDomEvent(
-		activeDocument,
-		'keydown',
-		(event) => {
-			if (event.metaKey) return;
-			// Skip plain Ctrl, but allow AltGr (which browsers report as Ctrl+Alt
-			// on Windows) so layouts that need it for brackets/quotes work.
-			if (event.ctrlKey && !event.altKey) return;
-			if (event.key === 'Escape') {
-				state = { kind: 'idle' };
-				return;
-			}
-			if (event.key.length !== 1) return;
+export type StepResult = {
+	next: State;
+	handled: boolean;
+	effect?: Effect;
+};
 
-			const target = event.target as HTMLElement | null;
-			if (!target) return;
-			const view = EditorView.findFromDOM(target);
-			if (!view) return;
+export type StepDeps = {
+	resolveWordObject: (scope: 'i' | 'a', target: 'w' | 'W') => [number, number] | undefined;
+};
 
-			const mode = plugin.vim.mode(view);
-			if (mode !== 'normal' && mode !== 'visual') return;
+export const IDLE: State = { kind: 'idle' };
 
-			// If vim is mid-sequence (e.g. user just typed `g` and we're about to
-			// receive the `d` of `gd`), let vim consume the key. Without this we
-			// swallow operator-like keys (`d`/`c`/`y`) that are really the second
-			// char of a multi-key vim command.
-			if (state.kind === 'idle' && plugin.vim.hasPendingInput(view)) return;
-
-			const handled = step(plugin, view, event.key, mode, state, (s) => {
-				state = s;
-			});
-			if (handled) {
-				event.preventDefault();
-				event.stopPropagation();
-				event.stopImmediatePropagation();
-			}
-		},
-		{ capture: true },
-	);
-}
-
-function step(
-	plugin: MoreVim,
-	view: EditorView,
+export function step(
+	state: State,
 	key: string,
 	mode: 'normal' | 'visual',
-	state: State,
-	setState: (s: State) => void,
-): boolean {
+	view: EditorView,
+	deps: StepDeps,
+): StepResult {
 	switch (state.kind) {
 		case 'idle':
 			if (mode === 'normal' && (key === 'y' || key === 'd' || key === 'c')) {
-				setState({ kind: 'op', op: key });
-				return true;
+				return { next: { kind: 'op', op: key }, handled: true };
 			}
 			if (mode === 'visual' && key === 'S') {
-				setState({ kind: 'vS' });
-				return true;
+				return { next: { kind: 'vS' }, handled: true };
 			}
-			return false;
+			return { next: state, handled: false };
 
 		case 'op':
 			if (key === 's') {
-				if (state.op === 'y') setState({ kind: 'ys' });
-				else if (state.op === 'd') setState({ kind: 'ds' });
-				else setState({ kind: 'cs' });
-				return true;
+				if (state.op === 'y') return { next: { kind: 'ys' }, handled: true };
+				if (state.op === 'd') return { next: { kind: 'ds' }, handled: true };
+				return { next: { kind: 'cs' }, handled: true };
 			}
-			// Not a surround — replay the original op key + this key back to vim.
-			plugin.vim.send(view, state.op);
-			plugin.vim.send(view, key);
-			setState({ kind: 'idle' });
-			return true;
+			return {
+				next: IDLE,
+				handled: true,
+				effect: { kind: 'replayKeys', keys: [state.op, key] },
+			};
 
 		case 'ys':
 			if (key === 's') {
@@ -122,115 +94,102 @@ function step(
 				const pos = view.state.selection.main.head;
 				const line = view.state.doc.lineAt(pos);
 				const leading = /^\s*/.exec(line.text)?.[0].length ?? 0;
-				setState({ kind: 'wrap', from: line.from + leading, to: line.to });
-				return true;
+				return {
+					next: { kind: 'wrap', from: line.from + leading, to: line.to },
+					handled: true,
+				};
 			}
-			if (key === 'i') {
-				setState({ kind: 'ysi' });
-				return true;
-			}
-			if (key === 'a') {
-				setState({ kind: 'ysa' });
-				return true;
-			}
-			setState({ kind: 'idle' });
-			return true;
+			if (key === 'i') return { next: { kind: 'ysi' }, handled: true };
+			if (key === 'a') return { next: { kind: 'ysa' }, handled: true };
+			return { next: IDLE, handled: true };
 
 		case 'ysi':
 		case 'ysa': {
-			const aroundOrInner = state.kind === 'ysi' ? 'i' : 'a';
-			if (key === 'w' || key === 'W' || isPair(key)) {
-				const target = key === 'w' || key === 'W' ? key : normalizePair(key);
-				const range = resolveRange(plugin, view, aroundOrInner, target);
-				if (!range) {
-					setState({ kind: 'idle' });
-					return true;
-				}
-				setState({ kind: 'wrap', from: range[0], to: range[1] });
-				return true;
+			const scope = state.kind === 'ysi' ? 'i' : 'a';
+			if (key === 'w' || key === 'W') {
+				const range = deps.resolveWordObject(scope, key);
+				if (!range) return { next: IDLE, handled: true };
+				return { next: { kind: 'wrap', from: range[0], to: range[1] }, handled: true };
 			}
-			setState({ kind: 'idle' });
-			return true;
+			if (isPair(key)) {
+				const range = findPairRange(
+					view,
+					normalizePair(key),
+					view.state.selection.main.head,
+					scope,
+				);
+				if (!range) return { next: IDLE, handled: true };
+				return { next: { kind: 'wrap', from: range[0], to: range[1] }, handled: true };
+			}
+			return { next: IDLE, handled: true };
 		}
 
 		case 'wrap':
 			if (isPair(key)) {
-				wrapRange(view, state.from, state.to, normalizePair(key));
+				return {
+					next: IDLE,
+					handled: true,
+					effect: {
+						kind: 'wrap',
+						from: state.from,
+						to: state.to,
+						ch: normalizePair(key),
+					},
+				};
 			}
-			setState({ kind: 'idle' });
-			return true;
+			return { next: IDLE, handled: true };
 
 		case 'ds':
 			if (isPair(key)) {
-				const range = resolveRange(plugin, view, 'a', normalizePair(key));
+				const range = findPairRange(view, normalizePair(key), view.state.selection.main.head, 'a');
 				if (range && range[1] - range[0] >= 2) {
-					const [from, to] = range;
-					view.dispatch({
-						changes: [
-							{ from: to - 1, to, insert: '' },
-							{ from, to: from + 1, insert: '' },
-						],
-						selection: { anchor: from },
-					});
+					return {
+						next: IDLE,
+						handled: true,
+						effect: { kind: 'deletePair', from: range[0], to: range[1] },
+					};
 				}
 			}
-			setState({ kind: 'idle' });
-			return true;
+			return { next: IDLE, handled: true };
 
 		case 'cs':
-			if (isPair(key)) {
-				setState({ kind: 'csOld', old: normalizePair(key) });
-			} else {
-				setState({ kind: 'idle' });
-			}
-			return true;
+			if (isPair(key)) return { next: { kind: 'csOld', old: normalizePair(key) }, handled: true };
+			return { next: IDLE, handled: true };
 
 		case 'csOld':
 			if (isPair(key)) {
-				const range = resolveRange(plugin, view, 'a', state.old);
+				const range = findPairRange(view, state.old, view.state.selection.main.head, 'a');
 				if (range && range[1] - range[0] >= 2) {
-					const [from, to] = range;
-					const [open, close] = PAIRS[normalizePair(key)];
-					view.dispatch({
-						changes: [
-							{ from: to - 1, to, insert: close },
-							{ from, to: from + 1, insert: open },
-						],
-						selection: { anchor: from },
-					});
+					return {
+						next: IDLE,
+						handled: true,
+						effect: {
+							kind: 'changePair',
+							from: range[0],
+							to: range[1],
+							ch: normalizePair(key),
+						},
+					};
 				}
 			}
-			setState({ kind: 'idle' });
-			return true;
+			return { next: IDLE, handled: true };
 
 		case 'vS':
 			if (isPair(key)) {
 				const sel = view.state.selection.main;
 				const from = Math.min(sel.anchor, sel.head);
 				const to = Math.max(sel.anchor, sel.head);
-				plugin.vim.send(view, '<Esc>');
-				if (from !== to) wrapRange(view, from, to, normalizePair(key));
+				if (from !== to) {
+					return {
+						next: IDLE,
+						handled: true,
+						effect: { kind: 'escapeAndWrap', from, to, ch: normalizePair(key) },
+					};
+				}
 			}
-			setState({ kind: 'idle' });
-			return true;
+			return { next: IDLE, handled: true };
 	}
 }
-
-function resolveRange(
-	plugin: MoreVim,
-	view: EditorView,
-	scope: 'i' | 'a',
-	target: string,
-): [number, number] | undefined {
-	// Pair characters: use our own finder so we can match pairs the cursor isn't
-	// strictly inside (vim's text-objects require cursor-inside).
-	if (Object.prototype.hasOwnProperty.call(PAIRS, target)) {
-		return findPairRange(view, target, view.state.selection.main.head, scope);
-	}
-	return plugin.vim.textObjectRange(view, scope, target);
-}
-
-const BRACKETS: Record<string, string> = { '(': ')', '[': ']', '{': '}', '<': '>' };
 
 function findPairRange(
 	view: EditorView,
@@ -266,7 +225,7 @@ function findBracketRange(
 		}
 	}
 	if (openPos === -1) {
-		// Cursor before any pair — accept the first opener forward.
+		// Cursor before any pair - accept the first opener forward.
 		for (let i = cursor; i < doc.length; i++) {
 			if (doc[i] === open) {
 				openPos = i;
@@ -324,13 +283,104 @@ function findQuoteRange(
 	return;
 }
 
-function wrapRange(view: EditorView, from: number, to: number, ch: string) {
-	const [open, close] = PAIRS[ch];
-	view.dispatch({
-		changes: [
-			{ from: to, to, insert: close },
-			{ from, to: from, insert: open },
-		],
-		selection: { anchor: from },
-	});
+export function installSurround(plugin: MoreVim) {
+	let state: State = IDLE;
+
+	plugin.registerDomEvent(
+		activeDocument,
+		'keydown',
+		(event) => {
+			if (event.metaKey) return;
+			// Skip plain Ctrl, but allow AltGr (which browsers report as Ctrl+Alt
+			// on Windows) so layouts that need it for brackets/quotes work.
+			if (event.ctrlKey && !event.altKey) return;
+			if (event.key === 'Escape') {
+				state = IDLE;
+				return;
+			}
+			if (event.key.length !== 1) return;
+
+			const target = event.target as HTMLElement | null;
+			if (!target) return;
+			const view = EditorView.findFromDOM(target);
+			if (!view) return;
+
+			const mode = plugin.vim.mode(view);
+			if (mode !== 'normal' && mode !== 'visual') return;
+
+			// If vim is mid-sequence (e.g. user just typed `g` and we're about to
+			// receive the `d` of `gd`), let vim consume the key. Without this we
+			// swallow operator-like keys (`d`/`c`/`y`) that are really the second
+			// char of a multi-key vim command.
+			if (state.kind === 'idle' && plugin.vim.hasPendingInput(view)) return;
+
+			const result = step(state, event.key, mode, view, {
+				resolveWordObject: (scope, target) => plugin.vim.textObjectRange(view, scope, target),
+			});
+
+			state = result.next;
+
+			if (result.effect) applyEffect(view, plugin, result.effect);
+
+			if (result.handled) {
+				event.preventDefault();
+				event.stopPropagation();
+				event.stopImmediatePropagation();
+			}
+		},
+		{ capture: true },
+	);
+}
+
+function applyEffect(view: EditorView, plugin: MoreVim, effect: Effect) {
+	switch (effect.kind) {
+		case 'wrap': {
+			const [open, close] = PAIRS[effect.ch];
+			view.dispatch({
+				changes: [
+					{ from: effect.to, to: effect.to, insert: close },
+					{ from: effect.from, to: effect.from, insert: open },
+				],
+				selection: { anchor: effect.from },
+			});
+			return;
+		}
+		case 'deletePair': {
+			view.dispatch({
+				changes: [
+					{ from: effect.to - 1, to: effect.to, insert: '' },
+					{ from: effect.from, to: effect.from + 1, insert: '' },
+				],
+				selection: { anchor: effect.from },
+			});
+			return;
+		}
+		case 'changePair': {
+			const [open, close] = PAIRS[effect.ch];
+			view.dispatch({
+				changes: [
+					{ from: effect.to - 1, to: effect.to, insert: close },
+					{ from: effect.from, to: effect.from + 1, insert: open },
+				],
+				selection: { anchor: effect.from },
+			});
+			return;
+		}
+		case 'replayKeys': {
+			for (const k of effect.keys) plugin.vim.send(view, k);
+			return;
+		}
+		case 'escapeAndWrap': {
+			plugin.vim.send(view, '<Esc>');
+			const [open, close] = PAIRS[effect.ch];
+			view.dispatch({
+				changes: [
+					{ from: effect.to, to: effect.to, insert: close },
+					{ from: effect.from, to: effect.from, insert: open },
+				],
+				selection: { anchor: effect.from },
+			});
+			return;
+		}
+	}
 }

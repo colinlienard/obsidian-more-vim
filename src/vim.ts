@@ -10,7 +10,7 @@ export class Vim {
 
 	init(view: EditorView): boolean {
 		const cm = getCM(view);
-		// @ts-expect-error internal — the Vim namespace is hung off cm's constructor
+		// @ts-expect-error internal - the Vim namespace is hung off cm's constructor
 		this.namespace = cm?.constructor?.Vim as VimNamespace | undefined;
 		return !!this.namespace;
 	}
@@ -28,16 +28,11 @@ export class Vim {
 			case 'insert':
 			case 'replace':
 				return raw;
-			// @replit/codemirror-vim leaves `mode` unset in plain normal mode, so
-			// any unrecognized value (including undefined) folds to 'normal'.
 			default:
 				return 'normal';
 		}
 	}
 
-	// True when vim is mid-sequence (e.g. `g` typed, waiting for the second
-	// key of `gd`/`gx`/…). Capture-phase listeners must defer to vim in this
-	// state, otherwise they swallow what vim was about to consume.
 	hasPendingInput(view: EditorView): boolean {
 		const cm = getCM(view);
 		const buf = cm?.state.vim?.inputState?.keyBuffer;
@@ -71,9 +66,6 @@ export class Vim {
 		return this.namespace?.getRegisterController();
 	}
 
-	// Resolve a text-object range (`iw`, `aW`, …) without leaving any trace in
-	// vim state: enters visual mode to let vim compute the selection, reads it,
-	// then escapes and restores the cursor (vim leaves it at the selection end).
 	textObjectRange(
 		view: EditorView,
 		scope: 'i' | 'a',
@@ -93,10 +85,6 @@ export class Vim {
 		return [from, to];
 	}
 
-	// Run `fn` once per selection range, collapsing the editor to that range
-	// before each call, then reassemble all resulting selections into a single
-	// multi-range selection. Synchronous — relies on vim.handleKey mutating
-	// selection in place.
 	perCursor(view: EditorView, fn: (view: EditorView) => void): void {
 		const oldRanges = view.state.selection.ranges;
 		const newRanges: SelectionRange[] = [];

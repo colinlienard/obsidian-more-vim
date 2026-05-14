@@ -47,14 +47,11 @@ export default class MoreVim extends Plugin {
 		this.clipboard.uninstall(this);
 	}
 
-	// The active Markdown editor and its underlying CodeMirror view. Returns
-	// undefined when no Markdown leaf is focused. Centralizes the `editor.cm`
-	// internal-API cast so feature code never reaches through `editor` itself.
 	activeContext(): ActiveContext | undefined {
 		const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = mdView?.editor;
 		if (!editor) return undefined;
-		// @ts-expect-error internal — Obsidian's Editor wraps a CodeMirror EditorView
+		// @ts-expect-error internal - Obsidian's Editor wraps a CodeMirror EditorView
 		const cmView = editor.cm as EditorView;
 		return { editor, cmView, file: mdView?.file ?? null };
 	}

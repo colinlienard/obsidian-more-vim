@@ -37,7 +37,7 @@ export function defineCommands(plugin: MoreVim) {
 			const { editor, cmView } = ctx;
 			const { line } = editor.getCursor();
 			editor.setCursor({ line, ch: editor.getLine(line).length });
-			plugin.vim.send(cmView, 'A'); // insert mode at end of line
+			plugin.vim.send(cmView, 'A');
 			cmView.contentDOM.dispatchEvent(
 				new KeyboardEvent('keydown', {
 					key: 'Enter',

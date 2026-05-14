@@ -35,8 +35,6 @@ export function selectWord(plugin: MoreVim) {
 					const newRange = EditorSelection.range(foundAt, foundAt + needle.length);
 					const ranges = [...selection.ranges, newRange];
 
-					// Esc here collapses vim's visual selection to a single cursor; the
-					// dispatch below restores the full multi-range selection.
 					if (mode === 'visual') {
 						plugin.vim.send(view, '<Esc>');
 					}
