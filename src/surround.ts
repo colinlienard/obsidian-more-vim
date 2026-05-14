@@ -64,6 +64,12 @@ export function installSurround(plugin: MoreVim) {
 			const mode = plugin.vim.mode(view);
 			if (mode !== 'normal' && mode !== 'visual') return;
 
+			// If vim is mid-sequence (e.g. user just typed `g` and we're about to
+			// receive the `d` of `gd`), let vim consume the key. Without this we
+			// swallow operator-like keys (`d`/`c`/`y`) that are really the second
+			// char of a multi-key vim command.
+			if (state.kind === 'idle' && plugin.vim.hasPendingInput(view)) return;
+
 			const handled = step(plugin, view, event.key, mode, state, (s) => {
 				state = s;
 			});

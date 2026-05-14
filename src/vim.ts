@@ -35,6 +35,15 @@ export class Vim {
 		}
 	}
 
+	// True when vim is mid-sequence (e.g. `g` typed, waiting for the second
+	// key of `gd`/`gx`/…). Capture-phase listeners must defer to vim in this
+	// state, otherwise they swallow what vim was about to consume.
+	hasPendingInput(view: EditorView): boolean {
+		const cm = getCM(view);
+		const buf = cm?.state.vim?.inputState?.keyBuffer;
+		return !!buf && buf.some((k) => k !== '');
+	}
+
 	send(view: EditorView, keys: string): void {
 		const cm = getCM(view);
 		if (!cm || !this.namespace) return;
