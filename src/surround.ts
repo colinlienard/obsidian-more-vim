@@ -1,9 +1,10 @@
 import { EditorView } from '@codemirror/view';
-import { getCM } from '@replit/codemirror-vim';
 import type MoreVim from './main';
 
 type Pair = [string, string];
 
+// Following vim-surround, the "opening" bracket variant pads with inner
+// spaces; the "closing" variant doesn't.
 const PAIRS: Record<string, Pair> = {
 	'(': ['( ', ' )'],
 	')': ['(', ')'],
@@ -21,6 +22,7 @@ const PAIRS: Record<string, Pair> = {
 	'~': ['~', '~'],
 };
 
+// vim-surround aliases.
 const ALIASES: Record<string, string> = { b: '(', B: '{', r: '[' };
 const normalizePair = (k: string) => ALIASES[k] ?? k;
 const isPair = (k: string) => Object.prototype.hasOwnProperty.call(PAIRS, normalizePair(k));
@@ -59,14 +61,10 @@ export function installSurround(plugin: MoreVim) {
 			const view = EditorView.findFromDOM(target);
 			if (!view) return;
 
-			const cm = getCM(view);
-			if (!cm || !plugin.vim) return;
+			const mode = plugin.vim.mode(view);
+			if (mode !== 'normal' && mode !== 'visual') return;
 
-			const rawMode = cm.state.vim?.mode;
-			if (rawMode === 'insert' || rawMode === 'replace') return;
-			const mode: 'normal' | 'visual' = rawMode === 'visual' ? 'visual' : 'normal';
-
-			const handled = step(plugin, view, cm, event.key, mode, state, (s) => {
+			const handled = step(plugin, view, event.key, mode, state, (s) => {
 				state = s;
 			});
 			if (handled) {
@@ -82,14 +80,11 @@ export function installSurround(plugin: MoreVim) {
 function step(
 	plugin: MoreVim,
 	view: EditorView,
-	cm: ReturnType<typeof getCM>,
 	key: string,
 	mode: 'normal' | 'visual',
 	state: State,
 	setState: (s: State) => void,
 ): boolean {
-	if (!cm || !plugin.vim) return false;
-
 	switch (state.kind) {
 		case 'idle':
 			if (mode === 'normal' && (key === 'y' || key === 'd' || key === 'c')) {
@@ -110,8 +105,8 @@ function step(
 				return true;
 			}
 			// Not a surround — replay the original op key + this key back to vim.
-			plugin.vim.handleKey(cm, state.op, 'user');
-			plugin.vim.handleKey(cm, key, 'user');
+			plugin.vim.send(view, state.op);
+			plugin.vim.send(view, key);
 			setState({ kind: 'idle' });
 			return true;
 
@@ -140,7 +135,7 @@ function step(
 			const aroundOrInner = state.kind === 'ysi' ? 'i' : 'a';
 			if (key === 'w' || key === 'W' || isPair(key)) {
 				const target = key === 'w' || key === 'W' ? key : normalizePair(key);
-				const range = resolveRange(plugin, cm, view, aroundOrInner, target);
+				const range = resolveRange(plugin, view, aroundOrInner, target);
 				if (!range) {
 					setState({ kind: 'idle' });
 					return true;
@@ -161,7 +156,7 @@ function step(
 
 		case 'ds':
 			if (isPair(key)) {
-				const range = resolveRange(plugin, cm, view, 'a', normalizePair(key));
+				const range = resolveRange(plugin, view, 'a', normalizePair(key));
 				if (range && range[1] - range[0] >= 2) {
 					const [from, to] = range;
 					view.dispatch({
@@ -186,7 +181,7 @@ function step(
 
 		case 'csOld':
 			if (isPair(key)) {
-				const range = resolveRange(plugin, cm, view, 'a', state.old);
+				const range = resolveRange(plugin, view, 'a', state.old);
 				if (range && range[1] - range[0] >= 2) {
 					const [from, to] = range;
 					const [open, close] = PAIRS[normalizePair(key)];
@@ -207,7 +202,7 @@ function step(
 				const sel = view.state.selection.main;
 				const from = Math.min(sel.anchor, sel.head);
 				const to = Math.max(sel.anchor, sel.head);
-				plugin.vim.handleKey(cm, '<Esc>', 'user');
+				plugin.vim.send(view, '<Esc>');
 				if (from !== to) wrapRange(view, from, to, normalizePair(key));
 			}
 			setState({ kind: 'idle' });
@@ -217,7 +212,6 @@ function step(
 
 function resolveRange(
 	plugin: MoreVim,
-	cm: NonNullable<ReturnType<typeof getCM>>,
 	view: EditorView,
 	scope: 'i' | 'a',
 	target: string,
@@ -230,15 +224,14 @@ function resolveRange(
 
 	// Words/WORDs: delegate to vim's text-objects. Save & restore the cursor
 	// because the visual-then-escape dance leaves it at the selection's end.
-	if (!plugin.vim) return;
 	const origCursor = view.state.selection.main.head;
-	plugin.vim.handleKey(cm, 'v', 'user');
-	plugin.vim.handleKey(cm, scope, 'user');
-	plugin.vim.handleKey(cm, target, 'user');
+	plugin.vim.send(view, 'v');
+	plugin.vim.send(view, scope);
+	plugin.vim.send(view, target);
 	const sel = view.state.selection.main;
 	const from = Math.min(sel.anchor, sel.head);
 	const to = Math.max(sel.anchor, sel.head);
-	plugin.vim.handleKey(cm, '<Esc>', 'user');
+	plugin.vim.send(view, '<Esc>');
 	view.dispatch({ selection: { anchor: origCursor } });
 	if (from === to) return;
 	return [from, to];

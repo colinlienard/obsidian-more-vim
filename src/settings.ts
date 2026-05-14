@@ -1,6 +1,5 @@
 import { PluginSettingTab, Setting } from 'obsidian';
 import MoreVim from './main';
-import { syncRegisterWithSetting } from './yank';
 
 export type Settings = {
 	registerSystemClipboard: boolean;
@@ -34,7 +33,7 @@ export class SettingTab extends PluginSettingTab {
 				toggle.setValue(this.plugin.settings.registerSystemClipboard).onChange(async (value) => {
 					this.plugin.settings.registerSystemClipboard = value;
 					await this.plugin.saveSettings();
-					syncRegisterWithSetting(this.plugin);
+					this.plugin.clipboard.syncWithSetting(this.plugin);
 				}),
 			);
 

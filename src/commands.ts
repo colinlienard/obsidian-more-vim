@@ -1,45 +1,45 @@
 import type { EditorView } from '@codemirror/view';
 import { Editor, MarkdownView } from 'obsidian';
 import type MoreVim from './main';
-import type { CodeMirrorV } from '@replit/codemirror-vim';
 
 export function defineCommands(plugin: MoreVim) {
-	const mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-	const editor = mdView?.editor;
-	if (!mdView || !editor) return;
-
-	defineCommand(plugin, {
+	plugin.vim.defineCommand({
 		name: 'navigateLinkUnderCursor',
 		keys: 'gd',
 		fn() {
-			const token = getTokenAtCursor(editor);
+			const mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+			if (!mdView?.editor) return;
+			const token = getTokenAtCursor(mdView.editor);
 			if (token?.type === 'internal-link') {
 				void plugin.app.workspace.openLinkText(token.text, mdView.file?.path ?? '');
 			}
 		},
 	});
 
-	defineCommand(plugin, {
+	plugin.vim.defineCommand({
 		name: 'openLinkUnderCursor',
 		keys: 'gx',
 		fn() {
-			const token = getTokenAtCursor(editor);
+			const mdView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+			if (!mdView?.editor) return;
+			const token = getTokenAtCursor(mdView.editor);
 			if (token?.type === 'external-link') {
 				window.open(token.text, '_blank');
 			}
 		},
 	});
 
-	defineCommand(plugin, {
+	plugin.vim.defineCommand({
 		name: 'openLineKeepList',
 		keys: 'o',
-		fn(cm) {
+		fn() {
+			const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+			if (!editor) return;
 			const { line } = editor.getCursor();
-			const lineText = editor.getLine(line);
-			editor.setCursor({ line, ch: lineText.length });
-			plugin.vim?.handleKey(cm, 'A', 'user'); // insert mode at end of line
-			// @ts-expect-error internal
+			editor.setCursor({ line, ch: editor.getLine(line).length });
+			// @ts-expect-error internal — Obsidian's Editor wraps a CodeMirror EditorView
 			const view = editor.cm as EditorView;
+			plugin.vim.send(view, 'A'); // insert mode at end of line
 			view.contentDOM.dispatchEvent(
 				new KeyboardEvent('keydown', {
 					key: 'Enter',
@@ -50,14 +50,6 @@ export function defineCommands(plugin: MoreVim) {
 			);
 		},
 	});
-}
-
-function defineCommand(
-	plugin: MoreVim,
-	{ name, fn, keys }: { name: string; fn: (cm: CodeMirrorV) => void; keys: string },
-) {
-	plugin.vim?.defineAction(name, fn);
-	plugin.vim?.mapCommand(keys, 'action', name, {}, { context: 'normal' });
 }
 
 function getTokenAtCursor(editor: Editor) {
