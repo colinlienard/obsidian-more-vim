@@ -14,7 +14,7 @@ export function selectWord(plugin: MoreVim) {
 					const cm = getCM(view);
 					if (!cm) return false;
 
-					const mode = plugin.vimMode;
+					const mode = cm.state.vim?.mode;
 					const selection = view.state.selection;
 					const main = selection.main;
 

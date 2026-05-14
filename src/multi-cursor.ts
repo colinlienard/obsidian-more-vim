@@ -17,7 +17,8 @@ export function multiCursor(plugin: MoreVim) {
 function runPerCursor(key: string, plugin: MoreVim) {
 	return (view: EditorView) => {
 		const selection = view.state.selection;
-		if (selection.ranges.length <= 1 || plugin.vimMode !== 'normal' || !plugin.cm) return false;
+		if (selection.ranges.length <= 1 || !plugin.cm || plugin.cm.state.vim?.mode !== 'normal')
+			return false;
 
 		const oldRanges = selection.ranges;
 		const newRanges: SelectionRange[] = [];

@@ -4,6 +4,7 @@ import type { CodeMirror, Vim } from '@replit/codemirror-vim';
 import { EditorView } from '@codemirror/view';
 import { getCM } from '@replit/codemirror-vim';
 import { defineCommands } from './commands';
+import { installSurround } from './surround';
 import { installClipboardRegister, uninstallClipboardRegister } from './yank';
 import { scrolloff } from './scrolloff';
 import { selectWord } from './select-word';
@@ -31,6 +32,7 @@ export default class MoreVim extends Plugin {
 				this.registerEditorExtension(scrolloff(this));
 				this.registerEditorExtension(selectWord(this));
 				this.registerEditorExtension(multiCursor(this));
+				installSurround(this);
 			}),
 		);
 	}
@@ -39,11 +41,7 @@ export default class MoreVim extends Plugin {
 		uninstallClipboardRegister(this);
 	}
 
-	get vimMode() {
-		return this.cm?.state.vim?.mode as 'normal' | 'insert' | 'visual' | 'command';
-	}
-
-	init() {
+	init(): this is this & { vim: Vim } {
 		const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = mdView?.editor;
 		// @ts-expect-error internal
