@@ -23,8 +23,8 @@ export class Vim {
 		const cm = getCM(view);
 		if (!cm) return undefined;
 		const raw = cm.state.vim?.mode;
+		if (raw?.startsWith('visual')) return 'visual';
 		switch (raw) {
-			case 'visual':
 			case 'insert':
 			case 'replace':
 				return raw;
