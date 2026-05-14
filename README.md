@@ -6,7 +6,7 @@
 
 A plugin that adds Vim features missing from Obsidian's built-in Vim mode
 
-![Demo]()
+![Demo](./assets/demo.gif)
 
 </div>
 
