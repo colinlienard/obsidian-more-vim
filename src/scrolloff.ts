@@ -9,13 +9,7 @@ export function scrolloff(plugin: MoreVim) {
 
 				update.view.requestMeasure({
 					read(view) {
-						const lowestHead =
-							view.state.selection.ranges.length > 1
-								? view.state.selection.ranges.reduce(
-										(acc, curr) => (acc > curr.head ? acc : curr.head),
-										view.state.selection.main.head,
-									)
-								: view.state.selection.main.head;
+						const lowestHead = Math.max(...view.state.selection.ranges.map((r) => r.head));
 						const coords = view.coordsAtPos(lowestHead);
 						if (!coords) return null;
 

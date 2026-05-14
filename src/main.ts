@@ -1,19 +1,24 @@
-import { MarkdownView, Plugin } from 'obsidian';
+import { type Editor, MarkdownView, Plugin, type TFile } from 'obsidian';
 import { DEFAULT_SETTINGS, type Settings, SettingTab } from './settings';
-import type { CodeMirror, Vim } from '@replit/codemirror-vim';
-import { EditorView } from '@codemirror/view';
-import { getCM } from '@replit/codemirror-vim';
+import type { EditorView } from '@codemirror/view';
 import { defineCommands } from './commands';
 import { installSurround } from './surround';
-import { installClipboardRegister, uninstallClipboardRegister } from './yank';
+import { Clipboard } from './yank';
 import { scrolloff } from './scrolloff';
 import { selectWord } from './select-word';
 import { multiCursor } from './multi-cursor';
+import { Vim } from './vim';
+
+export type ActiveContext = {
+	editor: Editor;
+	cmView: EditorView;
+	file: TFile | null;
+};
 
 export default class MoreVim extends Plugin {
 	settings = { ...DEFAULT_SETTINGS };
-	vim: Vim | undefined;
-	cm: CodeMirror | undefined;
+	vim = new Vim();
+	clipboard = new Clipboard();
 
 	async onload() {
 		await this.loadSettings();
@@ -22,12 +27,13 @@ export default class MoreVim extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => {
-				if (this.vim) return;
-				if (!this.init()) return;
+				if (this.vim.isReady()) return;
+				const ctx = this.activeContext();
+				if (!ctx || !this.vim.init(ctx.cmView)) return;
 
 				defineCommands(this);
 
-				installClipboardRegister(this);
+				this.clipboard.install(this);
 
 				this.registerEditorExtension(scrolloff(this));
 				this.registerEditorExtension(selectWord(this));
@@ -38,19 +44,16 @@ export default class MoreVim extends Plugin {
 	}
 
 	onunload() {
-		uninstallClipboardRegister(this);
+		this.clipboard.uninstall(this);
 	}
 
-	init(): this is this & { vim: Vim } {
+	activeContext(): ActiveContext | undefined {
 		const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const editor = mdView?.editor;
-		// @ts-expect-error internal
-		const view: EditorView | undefined = editor?.cm;
-		if (!view) return false;
-		this.cm = getCM(view) || undefined;
-		// @ts-expect-error internal
-		this.vim = this.cm?.constructor?.Vim;
-		return !!this.vim;
+		if (!editor) return undefined;
+		// @ts-expect-error internal - Obsidian's Editor wraps a CodeMirror EditorView
+		const cmView = editor.cm as EditorView;
+		return { editor, cmView, file: mdView?.file ?? null };
 	}
 
 	async loadSettings() {

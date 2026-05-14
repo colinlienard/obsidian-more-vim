@@ -1,48 +1,51 @@
-import type { InsertModeChanges, Vim } from '@replit/codemirror-vim';
+import type { InsertModeChanges, Vim as VimNamespace } from '@replit/codemirror-vim';
 import type MoreVim from './main';
 
-type VimRegister = ReturnType<ReturnType<Vim['getRegisterController']>['getRegister']>;
+type VimRegister = ReturnType<ReturnType<VimNamespace['getRegisterController']>['getRegister']>;
 
-let originalUnnamed: VimRegister | null = null;
-let activeReg: ClipboardRegister | null = null;
+export class Clipboard {
+	private register: ClipboardRegister | null = null;
+	private originalUnnamed: VimRegister | null = null;
 
-export function installClipboardRegister(plugin: MoreVim) {
-	if (activeReg || !plugin.vim) return;
+	install(plugin: MoreVim) {
+		if (this.register || !plugin.vim.isReady()) return;
 
-	const controller = plugin.vim.getRegisterController();
-	originalUnnamed = controller.unnamedRegister;
+		const controller = plugin.vim.getRegisterController();
+		if (!controller) return;
+		this.originalUnnamed = controller.unnamedRegister;
 
-	const reg = new ClipboardRegister(() => plugin.settings.registerSystemClipboard);
-	activeReg = reg;
-	controller.unnamedRegister = reg;
-	controller.registers['"'] = reg;
+		const reg = new ClipboardRegister(() => plugin.settings.registerSystemClipboard);
+		this.register = reg;
+		controller.unnamedRegister = reg;
+		controller.registers['"'] = reg;
 
-	if (plugin.settings.registerSystemClipboard) {
-		void syncFromClipboard(reg);
+		if (plugin.settings.registerSystemClipboard) {
+			void syncFromClipboard(reg);
+		}
+
+		plugin.registerDomEvent(window, 'focus', () => {
+			if (!plugin.settings.registerSystemClipboard) return;
+			void syncFromClipboard(reg);
+		});
 	}
 
-	plugin.registerDomEvent(window, 'focus', () => {
-		if (!plugin.settings.registerSystemClipboard) return;
-		void syncFromClipboard(reg);
-	});
-}
+	uninstall(plugin: MoreVim) {
+		if (!this.register || !plugin.vim.isReady()) return;
 
-export function uninstallClipboardRegister(plugin: MoreVim) {
-	if (activeReg || !plugin.vim) return;
-
-	const controller = plugin.vim.getRegisterController();
-	if (originalUnnamed) {
-		controller.unnamedRegister = originalUnnamed;
-		controller.registers['"'] = originalUnnamed;
+		const controller = plugin.vim.getRegisterController();
+		if (controller && this.originalUnnamed) {
+			controller.unnamedRegister = this.originalUnnamed;
+			controller.registers['"'] = this.originalUnnamed;
+		}
+		this.originalUnnamed = null;
+		this.register = null;
 	}
-	originalUnnamed = null;
-	activeReg = null;
-}
 
-export function syncRegisterWithSetting(plugin: MoreVim) {
-	if (!activeReg) return;
-	if (plugin.settings.registerSystemClipboard) {
-		void syncFromClipboard(activeReg);
+	syncWithSetting(plugin: MoreVim) {
+		if (!this.register) return;
+		if (plugin.settings.registerSystemClipboard) {
+			void syncFromClipboard(this.register);
+		}
 	}
 }
 

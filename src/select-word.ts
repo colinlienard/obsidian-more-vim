@@ -1,6 +1,5 @@
 import { EditorSelection, Prec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { getCM } from '@replit/codemirror-vim';
 import type MoreVim from './main';
 
 export function selectWord(plugin: MoreVim) {
@@ -9,21 +8,18 @@ export function selectWord(plugin: MoreVim) {
 			{
 				key: 'Mod-d',
 				run(view: EditorView) {
-					if (!plugin.settings.modD || !plugin.vim) return false;
+					if (!plugin.settings.modD || !plugin.vim.isReady()) return false;
 
-					const cm = getCM(view);
-					if (!cm) return false;
-
-					const mode = cm.state.vim?.mode;
+					const mode = plugin.vim.mode(view);
 					const selection = view.state.selection;
 					const main = selection.main;
 
 					if (mode === 'insert' && main.empty && selection.ranges.length === 1) return false;
 
 					if (main.empty && selection.ranges.length === 1) {
-						plugin.vim.handleKey(cm, 'v', 'user');
-						plugin.vim.handleKey(cm, 'i', 'user');
-						plugin.vim.handleKey(cm, 'w', 'user');
+						plugin.vim.send(view, 'v');
+						plugin.vim.send(view, 'i');
+						plugin.vim.send(view, 'w');
 						return true;
 					}
 
@@ -39,10 +35,8 @@ export function selectWord(plugin: MoreVim) {
 					const newRange = EditorSelection.range(foundAt, foundAt + needle.length);
 					const ranges = [...selection.ranges, newRange];
 
-					// Esc here collapses vim's visual selection to a single cursor; the
-					// dispatch below restores the full multi-range selection.
 					if (mode === 'visual') {
-						plugin.vim.handleKey(cm, '<Esc>', 'user');
+						plugin.vim.send(view, '<Esc>');
 					}
 
 					view.dispatch({
