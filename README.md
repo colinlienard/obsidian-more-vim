@@ -1,92 +1,33 @@
-# Obsidian Sample Plugin
+<div align="center">
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+# More Vim
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+![Version](https://badgen.net/github/release/colinlienard/obsidian-more-vim)
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+A plugin that adds Vim features missing from Obsidian's built-in Vim mode
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+![Demo](./assets/demo.gif)
 
-## First time developing plugins?
+</div>
 
-Quick starting guide for new plugin devs:
+---
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Features
 
-## Releasing new releases
+| Feature                   | Behavior                                                                                                                                                                                                                      |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vim surround              | Adds `ys`, `ds`, `cs`, and visual-mode `S` for adding, deleting, and changing surrounding characters. Supports brackets, quotes, and the usual aliases (`b`, `B`, `r`).                                                       |
+| Multi-cursor motions      | When more than one cursor is active in normal mode, the motions `h j k l w W b B e E $ ^` run **per cursor**. `Escape` collapses back to the main cursor.                                                                     |
+| `Mod-D`                   | Empty selection → select the word under the cursor (`viw`). Non-empty selection → find the next occurrence and add a cursor there. Wraps to the top of the file when there are no more matches below. Toggleable in settings. |
+| `scrolloff`               | Keeps N lines of context above and below the cursor, like Vim's `scrolloff` option. Configurable in settings.                                                                                                                 |
+| System clipboard register | Mirrors yanks and puts to the OS clipboard via the unnamed (`"`) register, and re-syncs on window focus. Toggleable in settings.                                                                                              |
+| `o`                       | Open a new line while preserving Markdown list continuation. The built-in Vim `o` breaks lists; this one keeps the bullet/number going.                                                                                       |
+| `gd`                      | Open the internal link under the cursor.                                                                                                                                                                                      |
+| `gx`                      | Open the external URL under the cursor in a new browser tab.                                                                                                                                                                  |
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+> [!IMPORTANT]
+> `Mod-D` requires you to disable Obsidian's built-in hotkey first. Go to **Settings → Hotkeys**, search for the command currently bound to `Mod-D`, and unbind it. Otherwise Obsidian intercepts the key before this plugin can see it.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## License
 
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
-```
-
-## API Documentation
-
-See https://docs.obsidian.md
+[0BSD](./LICENSE) © Colin Lienard

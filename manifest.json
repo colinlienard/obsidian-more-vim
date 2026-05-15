@@ -2,8 +2,8 @@
 	"id": "more-vim",
 	"name": "More Vim",
 	"version": "0.0.1",
-	"minAppVersion": "0.16.0",
-	"description": "The missing vim features for Obsidian",
+	"minAppVersion": "1.12.7",
+	"description": "Adds missing Vim features to Obsidian, such as surround, multi-cursor, scrolloff, gd, gx, and more.",
 	"author": "Colin Lienard",
 	"authorUrl": "https://github.com/colinlienard",
 	"isDesktopOnly": true
