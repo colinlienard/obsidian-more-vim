@@ -50,8 +50,11 @@ export function defineCommands(plugin: MoreVim) {
 	});
 }
 
-function getTokenAtCursor(editor: Editor) {
-	// @ts-expect-error - internal
-	const token = editor.getClickableTokenAt(editor.getCursor());
-	return token as { type: 'internal-link' | 'external-link'; text: string } | undefined;
+type ClickableToken = { type: 'internal-link' | 'external-link'; text: string };
+
+function getTokenAtCursor(editor: Editor): ClickableToken | undefined {
+	const internal = editor as Editor & {
+		getClickableTokenAt: (pos: ReturnType<Editor['getCursor']>) => ClickableToken | undefined;
+	};
+	return internal.getClickableTokenAt(editor.getCursor());
 }
