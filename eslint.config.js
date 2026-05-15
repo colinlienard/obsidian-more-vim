@@ -1,16 +1,18 @@
 import ts from 'typescript-eslint';
 import obsidianmd from 'eslint-plugin-obsidianmd';
-import globals from 'globals';
+import globalsPkg from 'globals';
+
+/** @type {Record<string, Record<string, 'readonly' | 'writable' | 'off'>>} */
+const globals = globalsPkg;
 
 export default [
 	{
-		ignores: ['main.js', 'esbuild.config.mjs', 'eslint.config.js', 'version-bump.mjs'],
+		ignores: ['main.js'],
 	},
 	{
 		languageOptions: {
 			globals: {
 				...globals.browser,
-				...globals.node,
 			},
 		},
 	},
@@ -25,9 +27,9 @@ export default [
 				tsconfigRootDir: import.meta.dirname,
 			},
 		},
-		rules: {
-			'@typescript-eslint/no-unsafe-assignment': 'off',
-			'@typescript-eslint/no-unsafe-call': 'off',
-		},
+	},
+	{
+		files: ['**/*.{js,mjs,cjs}'],
+		...ts.configs.disableTypeChecked,
 	},
 ];

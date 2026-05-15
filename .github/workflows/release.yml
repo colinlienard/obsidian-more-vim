@@ -19,6 +19,8 @@ jobs:
     permissions:
       contents: write
       actions: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -47,6 +49,12 @@ jobs:
           git tag "${{ steps.get_version.outputs.VERSION }}"
       - name: Push changes and tags
         run: git push origin HEAD --follow-tags
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
