@@ -3,14 +3,12 @@ import type MoreVim from './main';
 
 type Pair = [string, string];
 
-// Following vim-surround, the "opening" bracket variant pads with inner
-// spaces; the "closing" variant doesn't.
 const PAIRS: Record<string, Pair> = {
-	'(': ['( ', ' )'],
+	'(': ['(', ')'],
 	')': ['(', ')'],
-	'[': ['[ ', ' ]'],
+	'[': ['[', ']'],
 	']': ['[', ']'],
-	'{': ['{ ', ' }'],
+	'{': ['{', '}'],
 	'}': ['{', '}'],
 	'<': ['<', '>'],
 	'>': ['<', '>'],
