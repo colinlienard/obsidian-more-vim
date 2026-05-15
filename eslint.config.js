@@ -2,8 +2,9 @@ import ts from 'typescript-eslint';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import globalsPkg from 'globals';
 
-/** @type {Record<string, Record<string, 'readonly' | 'writable' | 'off'>>} */
-const globals = globalsPkg;
+const globals = /** @type {Record<string, Record<string, 'readonly' | 'writable' | 'off'>>} */ (
+	globalsPkg
+);
 
 export default [
 	{
