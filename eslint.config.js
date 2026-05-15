@@ -1,9 +1,5 @@
 import ts from 'typescript-eslint';
 import obsidianmd from 'eslint-plugin-obsidianmd';
-import globalsPkg from 'globals';
-
-/** @type {Record<string, Record<string, 'readonly' | 'writable' | 'off'>>} */
-const globals = globalsPkg;
 
 export default [
 	{
@@ -12,7 +8,7 @@ export default [
 	{
 		languageOptions: {
 			globals: {
-				...globals.browser,
+				window: 'readonly',
 			},
 		},
 	},
