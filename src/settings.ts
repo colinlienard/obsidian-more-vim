@@ -9,7 +9,7 @@ export type Settings = {
 
 export const DEFAULT_SETTINGS: Settings = {
 	registerSystemClipboard: true,
-	scrolloff: 0,
+	scrolloff: 4,
 	modD: true,
 };
 
