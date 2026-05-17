@@ -22,29 +22,29 @@ export default class MoreVim extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-
 		this.addSettingTab(new SettingTab(this));
 
-		this.registerEvent(
-			this.app.workspace.on('active-leaf-change', () => {
-				if (this.vim.isReady()) return;
-				const ctx = this.activeContext();
-				if (!ctx || !this.vim.init(ctx.cmView)) return;
-
-				defineCommands(this);
-
-				this.clipboard.install(this);
-
-				this.registerEditorExtension(scrolloff(this));
-				this.registerEditorExtension(selectWord(this));
-				this.registerEditorExtension(multiCursor(this));
-				installSurround(this);
-			}),
-		);
+		this.init();
+		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.init()));
 	}
 
 	onunload() {
 		this.clipboard.uninstall(this);
+	}
+
+	init() {
+		if (this.vim.isReady()) return;
+		const ctx = this.activeContext();
+		if (!ctx || !this.vim.init(ctx.cmView)) return;
+
+		defineCommands(this);
+
+		this.clipboard.install(this);
+
+		this.registerEditorExtension(scrolloff(this));
+		this.registerEditorExtension(selectWord(this));
+		this.registerEditorExtension(multiCursor(this));
+		installSurround(this);
 	}
 
 	activeContext(): ActiveContext | undefined {

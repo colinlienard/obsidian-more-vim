@@ -53,7 +53,7 @@ export class SettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Select word under cursor (mod-d)')
 			.setDesc(
-				"Enable mod-d to select word under cursor, and multiple press to select multiple words. Note: the mod-d hotkey must be disabled in Obsidian's hotkey settings first.",
+				'Enable mod-d to select word under cursor, and multiple press to select multiple words.',
 			)
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.modD).onChange(async (value) => {
@@ -61,5 +61,9 @@ export class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}),
 			);
+
+		new Setting(containerEl).setName(
+			"⚠️ the mod-d hotkey must be disabled in Obsidian's hotkey settings first for select word under cursor to work.",
+		);
 	}
 }
