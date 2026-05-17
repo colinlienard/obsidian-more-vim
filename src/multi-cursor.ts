@@ -17,16 +17,13 @@ export function multiCursor(plugin: MoreVim) {
 
 function addCursorVertical(forward: boolean) {
 	return (view: EditorView) => {
-		const sel = view.state.selection;
-		const main = sel.main;
+		const selection = view.state.selection;
+		const main = selection.main;
 		const moved = view.moveVertically(main, forward);
 		if (moved.head === main.head) return true;
 
-		const ranges = [...sel.ranges, moved];
-		view.dispatch({
-			selection: EditorSelection.create(ranges, ranges.length - 1),
-			effects: EditorView.scrollIntoView(moved.head, { y: 'nearest' }),
-		});
+		const ranges = [...selection.ranges, moved];
+		view.dispatch({ selection: EditorSelection.create(ranges, ranges.length - 1) });
 		return true;
 	};
 }
